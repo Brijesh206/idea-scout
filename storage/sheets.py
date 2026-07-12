@@ -39,8 +39,13 @@ _client = None  # cached gspread client
 def _credentials():
     from google.oauth2.service_account import Credentials
 
-    if config.GOOGLE_SERVICE_ACCOUNT_JSON.strip().startswith("{"):
-        info = json.loads(config.GOOGLE_SERVICE_ACCOUNT_JSON)
+    # Strip a leading UTF-8 BOM (﻿) — some secret-upload paths (e.g. piping
+    # through PowerShell) can prepend one, which would otherwise break the
+    # startswith("{") check below and misroute a JSON blob through the
+    # file-path branch (confirmed live in GitHub Actions 2026-07-12).
+    raw_json = config.GOOGLE_SERVICE_ACCOUNT_JSON.lstrip("﻿").strip()
+    if raw_json.startswith("{"):
+        info = json.loads(raw_json)
         return Credentials.from_service_account_info(info, scopes=_SCOPES)
     path = config.GOOGLE_SERVICE_ACCOUNT_FILE or config.GOOGLE_SERVICE_ACCOUNT_JSON
     if not path:

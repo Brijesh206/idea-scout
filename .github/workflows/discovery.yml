@@ -4,20 +4,28 @@ name: Idea Discovery
 # -> Google Sheet -> Telegram digest. Runs on GitHub's free scheduled-cron tier
 # (docs/08-deployment-github-actions.md).
 #
-# Schedule times are a first guess, timed to land shortly before a dev window
-# opens (IST = UTC+5:30, per doc 08):
-#   - Daily ~19:30 IST (14:00 UTC) -> before the ~8:30/9 PM weeknight start.
-#   - Weekend-only ~09:00 IST (03:30 UTC, Sat/Sun) -> before the ~10 AM weekend start.
-# Doc 08 explicitly warns not to trust a guessed time — verify against real
-# run timestamps in the Actions log after the first few scheduled runs and
-# adjust the cron expressions below if the digest is landing at the wrong
-# local time (GitHub Actions cron can also run several minutes late under load).
+# DEVIATION FROM doc 08 (flagged, decided 2026-07-12): doc 08 specifies a
+# twice-daily schedule, sized for continuously triaging a growing backlog. The
+# user's actual workflow is serial, not continuous — pick one idea, spend up
+# to ~15 days evaluating/building/marketing/launching it, then look for the
+# next. Running 2x/day the whole time produces ~28 paid Haiku digests nobody
+# reads per cycle. Schedule below runs on the 1st and 15th of each month
+# instead — plain cron has no native "every 15 days", so this is the standard
+# way to approximate it (gaps land ~14-17 days apart) without extra tooling.
+# workflow_dispatch stays available to trigger a run early if a cycle ends
+# ahead of schedule.
+#
+# Time is a first guess, timed to land shortly before a dev window opens
+# (IST = UTC+5:30, per doc 08): ~19:30 IST (14:00 UTC) -> before the ~8:30/9 PM
+# weeknight start. Doc 08 explicitly warns not to trust a guessed time —
+# verify against real run timestamps in the Actions log and adjust if it's
+# landing at the wrong local time (GitHub Actions cron can also run several
+# minutes late under load).
 
 on:
   schedule:
-    - cron: "0 14 * * *"    # ~19:30 IST daily
-    - cron: "30 3 * * 6,0"  # ~09:00 IST, Saturday + Sunday
-  workflow_dispatch: {}      # manual trigger from the Actions tab, for testing
+    - cron: "0 14 1,15 * *"  # ~19:30 IST, the 1st and 15th of each month
+  workflow_dispatch: {}       # manual trigger — use this if a cycle ends early
 
 jobs:
   discover:
