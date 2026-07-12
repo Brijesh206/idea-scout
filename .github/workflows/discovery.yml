@@ -1,0 +1,55 @@
+name: Idea Discovery
+
+# Workflow A (docs/01-architecture.md): HN + Reddit + Product Hunt -> scoring
+# -> Google Sheet -> Telegram digest. Runs on GitHub's free scheduled-cron tier
+# (docs/08-deployment-github-actions.md).
+#
+# Schedule times are a first guess, timed to land shortly before a dev window
+# opens (IST = UTC+5:30, per doc 08):
+#   - Daily ~19:30 IST (14:00 UTC) -> before the ~8:30/9 PM weeknight start.
+#   - Weekend-only ~09:00 IST (03:30 UTC, Sat/Sun) -> before the ~10 AM weekend start.
+# Doc 08 explicitly warns not to trust a guessed time — verify against real
+# run timestamps in the Actions log after the first few scheduled runs and
+# adjust the cron expressions below if the digest is landing at the wrong
+# local time (GitHub Actions cron can also run several minutes late under load).
+
+on:
+  schedule:
+    - cron: "0 14 * * *"    # ~19:30 IST daily
+    - cron: "30 3 * * 6,0"  # ~09:00 IST, Saturday + Sunday
+  workflow_dispatch: {}      # manual trigger from the Actions tab, for testing
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    # Reddit's anonymous RSS rate limit is ~1 request/60s per IP (confirmed
+    # empirically, see config.py REDDIT_REQUEST_DELAY_SECONDS) — with the
+    # 7-subreddit default list, Reddit ingestion alone takes ~7 minutes.
+    # Generous headroom on top for HN/PH + LLM scoring batches (free-tier
+    # retries can add real latency).
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run discovery pipeline
+        env:
+          LLM_PROVIDER: ${{ secrets.LLM_PROVIDER }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PRODUCTHUNT_API_TOKEN: ${{ secrets.PRODUCTHUNT_API_TOKEN }}
+        run: python main_discovery.py

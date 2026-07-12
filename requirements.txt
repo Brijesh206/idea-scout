@@ -1,0 +1,8 @@
+# Discovery pipeline dependencies (HN + Reddit + PH -> scoring -> Sheets -> Telegram).
+# Dependencies are added incrementally per slice, not all upfront.
+requests>=2.31          # HN Algolia, Reddit JSON, PH GraphQL, Telegram send
+openai>=1.30            # OpenAI-compatible LLM client (NVIDIA Build + OpenRouter)
+anthropic>=0.40         # Claude Haiku (production scoring provider)
+gspread>=6.0            # Google Sheets read/write
+google-auth>=2.28       # service-account credentials for gspread
+python-dotenv>=1.0      # load local .env for development
